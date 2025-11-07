@@ -11,13 +11,13 @@ mod obj;
 mod color;
 mod fragment;
 mod shaders;
+mod shader;
 
 use framebuffer::Framebuffer;
 use vertex::Vertex;
 use obj::Obj;
-use triangle::triangle;
+use triangle::{triangle, ShaderType};
 use shaders::vertex_shader;
-
 
 pub struct Uniforms {
     model_matrix: Mat4,
@@ -29,39 +29,39 @@ fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
     let (sin_z, cos_z) = rotation.z.sin_cos();
 
     let rotation_matrix_x = Mat4::new(
-        1.0,  0.0,    0.0,   0.0,
-        0.0,  cos_x, -sin_x, 0.0,
-        0.0,  sin_x,  cos_x, 0.0,
-        0.0,  0.0,    0.0,   1.0,
+        1.0, 0.0, 0.0, 0.0,
+        0.0, cos_x, -sin_x, 0.0,
+        0.0, sin_x, cos_x, 0.0,
+        0.0, 0.0, 0.0, 1.0,
     );
 
     let rotation_matrix_y = Mat4::new(
-        cos_y,  0.0,  sin_y, 0.0,
-        0.0,    1.0,  0.0,   0.0,
-        -sin_y, 0.0,  cos_y, 0.0,
-        0.0,    0.0,  0.0,   1.0,
+        cos_y, 0.0, sin_y, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        -sin_y, 0.0, cos_y, 0.0,
+        0.0, 0.0, 0.0, 1.0,
     );
 
     let rotation_matrix_z = Mat4::new(
         cos_z, -sin_z, 0.0, 0.0,
-        sin_z,  cos_z, 0.0, 0.0,
-        0.0,    0.0,  1.0, 0.0,
-        0.0,    0.0,  0.0, 1.0,
+        sin_z, cos_z, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0,
     );
 
     let rotation_matrix = rotation_matrix_z * rotation_matrix_y * rotation_matrix_x;
 
     let transform_matrix = Mat4::new(
-        scale, 0.0,   0.0,   translation.x,
-        0.0,   scale, 0.0,   translation.y,
-        0.0,   0.0,   scale, translation.z,
-        0.0,   0.0,   0.0,   1.0,
+        scale, 0.0, 0.0, translation.x,
+        0.0, scale, 0.0, translation.y,
+        0.0, 0.0, scale, translation.z,
+        0.0, 0.0, 0.0, 1.0,
     );
 
     transform_matrix * rotation_matrix
 }
 
-fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex]) {
+fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Vertex], shader_type: ShaderType, time: f32) {
     // Vertex Shader Stage
     let mut transformed_vertices = Vec::with_capacity(vertex_array.len());
     for vertex in vertex_array {
@@ -84,7 +84,7 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
     // Rasterization Stage
     let mut fragments = Vec::new();
     for tri in &triangles {
-        fragments.extend(triangle(&tri[0], &tri[1], &tri[2]));
+        fragments.extend(triangle(&tri[0], &tri[1], &tri[2], shader_type, time));
     }
 
     // Fragment Processing Stage
@@ -108,7 +108,7 @@ fn main() {
 
     let mut framebuffer = Framebuffer::new(framebuffer_width, framebuffer_height);
     let mut window = Window::new(
-        "Rust Graphics - Renderer Example",
+        "Sistema Solar - Rust Renderer",
         window_width,
         window_height,
         WindowOptions::default(),
@@ -118,29 +118,88 @@ fn main() {
     window.set_position(500, 500);
     window.update();
 
-    framebuffer.set_background_color(0x333355);
+    framebuffer.set_background_color(0x000000); // Negro espacio
 
+    // Carga el modelo de esfera
+    let obj = Obj::load("../assets/models/sphere.obj").expect("Failed to load sphere.obj");
+    let vertex_arrays = obj.get_vertex_array();
+
+    // Estado inicial
     let mut translation = Vec3::new(400.0, 300.0, 0.0);
     let mut rotation = Vec3::new(0.0, 0.0, 0.0);
-    let mut scale = 150.0f32;
+    let mut scale = 100.0f32;
+    let mut time = 0.0f32;
+    
+    // Shader actual (cambia este para ver diferentes planetas)
+    let mut current_shader = ShaderType::Sun;
+    
+    // ============= DESCOMENTAR PARA VER CADA PLANETA =============
+    // current_shader = ShaderType::Sun;           // Sol
+    // current_shader = ShaderType::RockyPlanet;   // Planeta Rocoso
+    // current_shader = ShaderType::GasGiant;      // Gigante Gaseoso
+    // current_shader = ShaderType::IcePlanet;     // Planeta Helado
+    // current_shader = ShaderType::VolcanicPlanet;// Planeta Volcánico
+    // current_shader = ShaderType::Moon;          // Luna
 
-    let obj = Obj::load("../assets/models/spaceship.obj").expect("Failed to load obj");
-    let vertex_arrays = obj.get_vertex_array(); 
+    println!("=== CONTROLES ===");
+    println!("Flechas: Mover");
+    println!("A/S: Escala -/+");
+    println!("Q/W: Rotar X");
+    println!("E/R: Rotar Y");
+    println!("T/Y: Rotar Z");
+    println!("");
+    println!("1: Sol");
+    println!("2: Planeta Rocoso");
+    println!("3: Gigante Gaseoso");
+    println!("4: Planeta Helado");
+    println!("5: Planeta Volcánico");
+    println!("6: Luna");
+    println!("");
+    println!("ESC: Salir");
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
             break;
         }
 
+        // Cambiar shader con teclas numéricas
+        if window.is_key_pressed(Key::Key1, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::Sun;
+            println!("Shader: Sol");
+        }
+        if window.is_key_pressed(Key::Key2, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::RockyPlanet;
+            println!("Shader: Planeta Rocoso");
+        }
+        if window.is_key_pressed(Key::Key3, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::GasGiant;
+            println!("Shader: Gigante Gaseoso");
+        }
+        if window.is_key_pressed(Key::Key4, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::IcePlanet;
+            println!("Shader: Planeta Helado");
+        }
+        if window.is_key_pressed(Key::Key5, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::VolcanicPlanet;
+            println!("Shader: Planeta Volcánico");
+        }
+        if window.is_key_pressed(Key::Key6, minifb::KeyRepeat::No) {
+            current_shader = ShaderType::Moon;
+            println!("Shader: Luna");
+        }
+
         handle_input(&window, &mut translation, &mut rotation, &mut scale);
 
         framebuffer.clear();
 
+        // Auto-rotación para mostrar los shaders
+        rotation.y += 0.01;
+        time += 0.016; // ~60 FPS
+
         let model_matrix = create_model_matrix(translation, scale, rotation);
         let uniforms = Uniforms { model_matrix };
 
-        framebuffer.set_current_color(0xFFDDDD);
-        render(&mut framebuffer, &uniforms, &vertex_arrays);
+        render(&mut framebuffer, &uniforms, &vertex_arrays, current_shader, time);
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
@@ -151,40 +210,47 @@ fn main() {
 }
 
 fn handle_input(window: &Window, translation: &mut Vec3, rotation: &mut Vec3, scale: &mut f32) {
+    let move_speed = 10.0;
+    let rotation_speed = PI / 30.0;
+    let scale_speed = 5.0;
+
     if window.is_key_down(Key::Right) {
-        translation.x += 10.0;
+        translation.x += move_speed;
     }
     if window.is_key_down(Key::Left) {
-        translation.x -= 10.0;
+        translation.x -= move_speed;
     }
     if window.is_key_down(Key::Up) {
-        translation.y -= 10.0;
+        translation.y -= move_speed;
     }
     if window.is_key_down(Key::Down) {
-        translation.y += 10.0;
+        translation.y += move_speed;
     }
     if window.is_key_down(Key::S) {
-        *scale += 2.0;
+        *scale += scale_speed;
     }
     if window.is_key_down(Key::A) {
-        *scale -= 2.0;
+        *scale -= scale_speed;
+        if *scale < 10.0 {
+            *scale = 10.0;
+        }
     }
     if window.is_key_down(Key::Q) {
-        rotation.x -= PI / 10.0;
+        rotation.x -= rotation_speed;
     }
     if window.is_key_down(Key::W) {
-        rotation.x += PI / 10.0;
+        rotation.x += rotation_speed;
     }
     if window.is_key_down(Key::E) {
-        rotation.y -= PI / 10.0;
+        rotation.y -= rotation_speed;
     }
     if window.is_key_down(Key::R) {
-        rotation.y += PI / 10.0;
+        rotation.y += rotation_speed;
     }
     if window.is_key_down(Key::T) {
-        rotation.z -= PI / 10.0;
+        rotation.z -= rotation_speed;
     }
     if window.is_key_down(Key::Y) {
-        rotation.z += PI / 10.0;
+        rotation.z += rotation_speed;
     }
 }
