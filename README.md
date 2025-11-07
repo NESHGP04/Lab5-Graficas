@@ -17,7 +17,7 @@ El objetivo del laboratorio es demostrar:
 - Efectos visuales personalizados con shaders.
 - Control interactivo de cámara y zoom.
 
-# 🚀 Características principales
+## 🚀 Características principales
 
 ✅ Renderizado en tiempo real usando framebuffer
 
@@ -35,7 +35,7 @@ Sistema solar con:
 ✅ Control de cámara y zoom interactivo
 ✅ Modo pausa y centrado automático
 
-# 🕹️ Controles
+## 🕹️ Controles
 Tecla	Acción
 ↑ ↓ ← →	Mover la cámara
 A / S	Zoom in / out
@@ -44,7 +44,7 @@ R	Recentrar cámara
 H	Mostrar / Ocultar ayuda
 ESC	Salir del programa
 
-# 🧠 Estructura del proyecto
+## 🧠 Estructura del proyecto
 Lab5/
 │
 ├── assets/
@@ -67,7 +67,7 @@ Lab5/
 ├── Cargo.toml                # Configuración del proyecto y dependencias
 └── README.md                 # Este archivo
 
-# ⚙️ Dependencias
+## ⚙️ Dependencias
 
 Asegúrate de tener instalado Rust y cargo:
 ```bash
@@ -87,7 +87,7 @@ minifb = "0.25"
 nalgebra-glm = "0.18"
 ```
 
-# ▶️ Ejecución
+## ▶️ Ejecución
 
 Para ejecutar el programa:
 ```bash
@@ -95,7 +95,7 @@ cd Lab5/src
 cargo run --release
 ```
 
-# 🧩 Detalles técnicos
+## 🧩 Detalles técnicos
 
 El renderizador simula el pipeline gráfico:
 - Vertex shader → Ensamblado de triángulos → Rasterización → Fragment shader.
@@ -103,18 +103,18 @@ El renderizador simula el pipeline gráfico:
 - Los anillos del gigante gaseoso se generan proceduralmente con líneas concéntricas.
 - La luna orbita dinámicamente alrededor del planeta rocoso.
 
-# 💡 Posibles mejoras
+## 💡 Posibles mejoras
 
 - Agregar proyección en perspectiva (actualmente 2D).
 - Implementar iluminación Phong básica.
 - Cargar múltiples modelos .obj para variación de formas.
 - Agregar detección de colisiones visuales entre órbitas.
 
-# 📸 Ejemplo visual (preview)
+## 📸 Ejemplo visual (preview)
 
 ![Sistema Solar img](Lab5/assets/image.png)
 
-# 📜 Licencia
+## 📜 Licencia
 
 Este proyecto fue desarrollado con fines académicos.
 Puedes modificarlo y distribuirlo libremente con atribución al autor original.
