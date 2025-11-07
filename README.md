@@ -36,15 +36,16 @@ Sistema solar con:
 ✅ Modo pausa y centrado automático
 
 ## 🕹️ Controles
-Tecla	Acción
-↑ ↓ ← →	Mover la cámara
-A / S	Zoom in / out
-ESPACIO	Pausar / Reanudar movimiento
-R	Recentrar cámara
-H	Mostrar / Ocultar ayuda
-ESC	Salir del programa
+- Tecla	Acción
+- ↑ ↓ ← →	Mover la cámara
+- A / S	Zoom in / out
+- ESPACIO	Pausar / Reanudar movimiento
+- R	Recentrar cámara
+- H	Mostrar / Ocultar ayuda
+- ESC	Salir del programa
 
 ## 🧠 Estructura del proyecto
+```
 Lab5/
 │
 ├── assets/
@@ -66,6 +67,7 @@ Lab5/
 │
 ├── Cargo.toml                # Configuración del proyecto y dependencias
 └── README.md                 # Este archivo
+```
 
 ## ⚙️ Dependencias
 
