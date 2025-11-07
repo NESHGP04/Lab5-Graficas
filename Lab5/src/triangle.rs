@@ -1,7 +1,6 @@
 use nalgebra_glm::{Vec3, dot};
 use crate::fragment::Fragment;
 use crate::vertex::Vertex;
-use crate::color::Color;
 use crate::shader;
 
 // Tipo de shader activo
