@@ -18,21 +18,24 @@ use vertex::Vertex;
 use obj::Obj;
 use triangle::{triangle, ShaderType};
 use shaders::vertex_shader;
+use crate::line::line;
 
 pub struct Uniforms {
     model_matrix: Mat4,
 }
 
 struct CelestialBody {
-    orbital_radius: f32,      // Distancia del sol
-    orbital_angle: f32,       // Ángulo actual en la órbita
-    orbital_speed: f32,       // Velocidad de traslación
+    orbital_radius: f32,
+    orbital_angle: f32,
+    orbital_speed: f32,
     scale: f32,
+    visible_radius: f32, 
     rotation: Vec3,
     shader_type: ShaderType,
     rotation_speed: f32,
     name: &'static str,
 }
+
 
 fn create_model_matrix(translation: Vec3, scale: f32, rotation: Vec3) -> Mat4 {
     let (sin_x, cos_x) = rotation.x.sin_cos();
@@ -109,6 +112,57 @@ fn render(framebuffer: &mut Framebuffer, uniforms: &Uniforms, vertex_array: &[Ve
         }
     }
 }
+
+fn draw_line(framebuffer: &mut Framebuffer, x1: i32, y1: i32, x2: i32, y2: i32, color: u32) {
+    let dx = (x2 - x1).abs();
+    let dy = -(y2 - y1).abs();
+    let sx = if x1 < x2 { 1 } else { -1 };
+    let sy = if y1 < y2 { 1 } else { -1 };
+    let mut err = dx + dy;
+    let mut x = x1;
+    let mut y = y1;
+
+    loop {
+        if x >= 0 && y >= 0 && (x as usize) < framebuffer.width && (y as usize) < framebuffer.height {
+            framebuffer.set_current_color(color);
+            framebuffer.point(x as usize, y as usize, 0.0);
+        }
+        if x == x2 && y == y2 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y += sy;
+        }
+    }
+}
+
+fn draw_ring(framebuffer: &mut Framebuffer, center: Vec3, inner_radius: f32, outer_radius: f32, color: u32) {
+    let steps = 100;
+    for i in 0..steps {
+        let theta1 = (i as f32 / steps as f32) * std::f32::consts::TAU;
+        let theta2 = ((i + 1) as f32 / steps as f32) * std::f32::consts::TAU;
+
+        let x1_inner = center.x + inner_radius * theta1.cos();
+        let y1_inner = center.y + inner_radius * theta1.sin();
+        let x2_inner = center.x + inner_radius * theta2.cos();
+        let y2_inner = center.y + inner_radius * theta2.sin();
+
+        let x1_outer = center.x + outer_radius * theta1.cos();
+        let y1_outer = center.y + outer_radius * theta1.sin();
+        let x2_outer = center.x + outer_radius * theta2.cos();
+        let y2_outer = center.y + outer_radius * theta2.sin();
+
+        draw_line(framebuffer, x1_inner as i32, y1_inner as i32, x2_inner as i32, y2_inner as i32, color);
+        draw_line(framebuffer, x1_outer as i32, y1_outer as i32, x2_outer as i32, y2_outer as i32, color);
+    }
+}
+
 
 /// Dibuja texto simple en pantalla (blanco)
 fn draw_text(framebuffer: &mut Framebuffer, x: usize, y: usize, text: &str, color: u32) {
@@ -273,64 +327,48 @@ fn main() {
     let sun_center_x = 600.0;
     let sun_center_y = 450.0;
 
+    // Configuración de la luna del planeta rocoso
+    let mut moon_angle: f32 = 0.0;
+    let moon_orbital_radius = 100.0; // distancia desde el planeta
+    let moon_speed = 0.05;
+    let moon_scale = 40.0;
+
     // Define los cuerpos celestes con órbitas
-    let mut bodies = vec![
-        // Planeta Rocoso (Mercurio/Tierra) - Órbita cercana
-        CelestialBody {
-            orbital_radius: 250.0,
-            orbital_angle: 0.0,
-            orbital_speed: 0.02,      // Más rápido (cerca del sol)
-            scale: 80.0,
-            rotation: Vec3::new(0.0, 0.0, 0.0),
-            shader_type: ShaderType::RockyPlanet,
-            rotation_speed: 0.015,
-            name: "Planeta Rocoso",
-        },
-        // Planeta Volcánico (Venus/Io) - Segunda órbita
-        CelestialBody {
-            orbital_radius: 350.0,
-            orbital_angle: PI / 3.0,  // Empieza en diferente posición
-            orbital_speed: 0.015,
-            scale: 85.0,
-            rotation: Vec3::new(0.0, 0.0, 0.0),
-            shader_type: ShaderType::VolcanicPlanet,
-            rotation_speed: 0.018,
-            name: "Planeta Volcánico",
-        },
-        // Gigante Gaseoso (Júpiter) - Órbita media
-        CelestialBody {
-            orbital_radius: 480.0,
-            orbital_angle: PI,        // Lado opuesto
-            orbital_speed: 0.01,      // Más lento
-            scale: 130.0,
-            rotation: Vec3::new(0.0, 0.0, 0.0),
-            shader_type: ShaderType::GasGiant,
-            rotation_speed: 0.012,
-            name: "Gigante Gaseoso",
-        },
-        // Planeta Helado (Urano/Neptuno) - Órbita externa
-        CelestialBody {
-            orbital_radius: 620.0,
-            orbital_angle: PI * 1.5,  // Otra posición
-            orbital_speed: 0.007,     // Muy lento
-            scale: 100.0,
-            rotation: Vec3::new(0.0, 0.0, 0.0),
-            shader_type: ShaderType::IcePlanet,
-            rotation_speed: 0.01,
-            name: "Planeta Helado",
-        },
-        // Luna - Órbita muy cercana
-        CelestialBody {
-            orbital_radius: 180.0,
-            orbital_angle: PI / 2.0,
-            orbital_speed: 0.025,     // Muy rápida
-            scale: 50.0,
-            rotation: Vec3::new(0.0, 0.0, 0.0),
-            shader_type: ShaderType::Moon,
-            rotation_speed: 0.02,
-            name: "Luna",
-        },
-    ];
+let mut bodies = vec![
+    CelestialBody {
+        orbital_radius: 250.0,
+        orbital_angle: 0.0,
+        orbital_speed: 0.02,
+        scale: 80.0,
+        visible_radius: 80.0 / 2.0, // planeta rocoso sin anillos
+        rotation: Vec3::new(0.0, 0.0, 0.0),
+        shader_type: ShaderType::RockyPlanet,
+        rotation_speed: 0.015,
+        name: "Planeta Rocoso",
+    },
+    CelestialBody {
+        orbital_radius: 480.0,
+        orbital_angle: std::f32::consts::PI,
+        orbital_speed: 0.01,
+        scale: 130.0,
+        visible_radius: 130.0 / 2.0 + 80.0, // 👈 planeta gaseoso + anillos
+        rotation: Vec3::new(0.0, 0.0, 0.0),
+        shader_type: ShaderType::GasGiant,
+        rotation_speed: 0.012,
+        name: "Gigante Gaseoso",
+    },
+    CelestialBody {
+        orbital_radius: 620.0,
+        orbital_angle: std::f32::consts::PI * 1.5,
+        orbital_speed: 0.007,
+        scale: 100.0,
+        visible_radius: 100.0 / 2.0,
+        rotation: Vec3::new(0.0, 0.0, 0.0),
+        shader_type: ShaderType::IcePlanet,
+        rotation_speed: 0.01,
+        name: "Planeta Helado",
+    },
+];
 
     // Camera control
     let mut camera_zoom = 1.0f32;
@@ -364,6 +402,20 @@ fn main() {
     println!();
     println!("💡 TIP: ¡Observa cómo los planetas internos orbitan más rápido!");
     println!();
+
+    // Evitar colisiones ajustando las distancias orbitales
+for i in 1..bodies.len() {
+    let prev = &bodies[i - 1];
+    let min_distance = prev.orbital_radius + prev.visible_radius + bodies[i].visible_radius + 40.0; // 40px de margen
+    if bodies[i].orbital_radius < min_distance {
+        bodies[i].orbital_radius = min_distance;
+    }
+}
+
+let moon_orbital_radius = 100.0;
+if moon_orbital_radius < bodies[0].visible_radius + moon_scale {
+    println!("⚠️ Ajustando órbita lunar para evitar colisión con el planeta rocoso");
+}
 
     while window.is_open() {
         if window.is_key_down(Key::Escape) {
@@ -505,6 +557,53 @@ fn main() {
             "* Presiona R para volver al centro y ver todo el sistema",
             color_text,
         );
+
+        // Dibuja los anillos del planeta gaseoso
+let gas_giant = &bodies[2]; // el gigante gaseoso en tu lista
+let gas_x = sun_center_x + gas_giant.orbital_radius * gas_giant.orbital_angle.cos();
+let gas_y = sun_center_y + gas_giant.orbital_radius * gas_giant.orbital_angle.sin();
+
+let gas_screen = Vec3::new(
+    gas_x * camera_zoom + camera_x,
+    gas_y * camera_zoom + camera_y,
+    0.0,
+);
+
+
+draw_ring(
+    &mut framebuffer,
+    gas_screen,
+    160.0 * camera_zoom, // radio interno
+    220.0 * camera_zoom, // radio externo
+    0xAAAAAA,            // color gris claro
+);
+
+// Dibuja la luna orbitando el planeta rocoso
+let rocky_planet = &bodies[0]; // el primero en tu lista
+let rocky_x = sun_center_x + rocky_planet.orbital_radius * rocky_planet.orbital_angle.cos();
+let rocky_y = sun_center_y + rocky_planet.orbital_radius * rocky_planet.orbital_angle.sin();
+
+if !paused {
+    moon_angle += moon_speed;
+}
+
+let moon_x = rocky_x + moon_orbital_radius * moon_angle.cos();
+let moon_y = rocky_y + moon_orbital_radius * moon_angle.sin();
+
+let moon_screen = Vec3::new(
+    moon_x * camera_zoom + camera_x,
+    moon_y * camera_zoom + camera_y,
+    0.0,
+);
+
+let moon_matrix = create_model_matrix(
+    moon_screen,
+    moon_scale * camera_zoom,
+    Vec3::new(0.0, moon_angle * 2.0, 0.0),
+);
+let moon_uniforms = Uniforms { model_matrix: moon_matrix };
+render(&mut framebuffer, &moon_uniforms, &vertex_arrays, ShaderType::Moon, time);
+
 
         window
             .update_with_buffer(&framebuffer.buffer, framebuffer_width, framebuffer_height)
