@@ -5,7 +5,7 @@ Autor: Marinés García
 Lenguaje: Rust
 Librerías principales: minifb, nalgebra_glm
 
-# 🌍 Descripción del proyecto
+## 🌍 Descripción del proyecto
 
 Este proyecto implementa un sistema solar 3D simplificado utilizando renderizado por software en Rust.
 El programa genera cuerpos celestes (Sol, planetas y lunas) usando modelos .obj sin texturas, aplicando rotación, traslación y sombreado básico simulado con shaders personalizados.
